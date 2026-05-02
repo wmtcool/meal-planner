@@ -1,14 +1,13 @@
 <script setup lang="ts">
 const { $supabase } = useNuxtApp()
+const router = useRouter()
 
-const categories = ['附近餐厅', '热门食谱', '快手菜', '甜品', '低脂健康']
-
-// 从 Supabase 获取热门食谱
+// 从 Supabase 获取所有食谱
 const { data: recipes } = await useAsyncData('recipes', async () => {
+  if (!$supabase) return []
   const { data } = await $supabase
     .from('recipes')
     .select('*')
-    .limit(4)
   return data || []
 })
 
@@ -35,11 +34,49 @@ const dailyPick = computed(() => {
 // 格式化热门数据
 const trends = computed(() => {
   if (!recipes.value) return []
-  return recipes.value.map(r => ({
+  return recipes.value.slice(0, 4).map(r => ({
+    id: r.id,
     name: r.title,
     image: r.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'
   }))
 })
+
+// "帮我挑" - 随机推荐
+const showPicker = ref(false)
+const pickedRecipe = ref<any>(null)
+const isPicking = ref(false)
+
+function handlePick() {
+  if (!recipes.value || recipes.value.length === 0) return
+
+  isPicking.value = true
+  showPicker.value = true
+
+  // 模拟随机滚动效果
+  let count = 0
+  const interval = setInterval(() => {
+    const randomIndex = Math.floor(Math.random() * recipes.value.length)
+    pickedRecipe.value = recipes.value[randomIndex]
+    count++
+
+    if (count >= 10) {
+      clearInterval(interval)
+      isPicking.value = false
+    }
+  }, 100)
+}
+
+function closePicker() {
+  showPicker.value = false
+  pickedRecipe.value = null
+}
+
+function goToRecipe() {
+  if (pickedRecipe.value) {
+    router.push(`/?recipe=${pickedRecipe.value.id}`)
+    closePicker()
+  }
+}
 </script>
 
 <template>
@@ -52,7 +89,7 @@ const trends = computed(() => {
           <span class="font-[Plus_Jakarta_Sans] text-stone-900 font-semibold">上海</span>
         </div>
         <h1 class="text-xl font-extrabold text-primary tracking-tight">每天吃什么</h1>
-        <button class="hover:opacity-80 transition-opacity">
+        <button @click="router.push('/search')" class="hover:opacity-80 transition-opacity">
           <span class="material-symbols-outlined text-stone-900">search</span>
         </button>
       </div>
@@ -68,7 +105,10 @@ const trends = computed(() => {
           </div>
           <div class="relative group">
             <div class="absolute -inset-4 bg-white/20 blur-xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity"></div>
-            <button class="relative flex flex-col items-center justify-center w-40 h-40 bg-white rounded-full shadow-[0_12px_40px_rgba(160,65,0,0.3)] active:scale-90 transition-transform">
+            <button
+              @click="handlePick"
+              class="relative flex flex-col items-center justify-center w-40 h-40 bg-white rounded-full shadow-[0_12px_40px_rgba(160,65,0,0.3)] active:scale-90 transition-transform"
+            >
               <span class="material-symbols-outlined text-primary text-5xl mb-2">restaurant</span>
               <span class="text-primary font-bold text-lg">帮我挑</span>
             </button>
@@ -89,7 +129,7 @@ const trends = computed(() => {
           <button class="text-primary font-label-md hover:opacity-80">查看全部</button>
         </div>
         <div class="flex overflow-x-auto gap-4 hide-scrollbar -mx-5 px-5 py-2">
-          <div v-for="item in trends" :key="item.name" class="flex-shrink-0 w-40 space-y-3 group cursor-pointer active:scale-95 transition-transform">
+          <div v-for="item in trends" :key="item.id" class="flex-shrink-0 w-40 space-y-3 group cursor-pointer active:scale-95 transition-transform">
             <div class="h-48 rounded-[24px] overflow-hidden shadow-[0_8px_20px_rgba(84,44,0,0.08)]">
               <img :alt="item.name" :src="item.image" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
             </div>
@@ -136,5 +176,61 @@ const trends = computed(() => {
     </main>
 
     <BottomNav />
+
+    <!-- Picker Modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showPicker" class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm" @click.self="closePicker">
+          <div class="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl">
+            <div class="text-center">
+              <h3 class="text-headline-md text-on-surface mb-2">
+                {{ isPicking ? '正在挑选...' : '今天吃这个！' }}
+              </h3>
+
+              <div v-if="pickedRecipe" class="mt-6">
+                <div class="w-full aspect-video rounded-2xl overflow-hidden mb-4">
+                  <img :src="pickedRecipe.image_url" :alt="pickedRecipe.title" class="w-full h-full object-cover" />
+                </div>
+                <h4 class="text-headline-sm text-on-surface">{{ pickedRecipe.title }}</h4>
+                <p class="text-body-md text-on-surface-variant mt-2">{{ pickedRecipe.description }}</p>
+                <div class="flex justify-center gap-4 mt-4 text-label-sm text-on-surface-variant">
+                  <span>{{ pickedRecipe.cook_time }} 分钟</span>
+                  <span>{{ pickedRecipe.calories }} 千卡</span>
+                </div>
+              </div>
+
+              <div class="flex gap-3 mt-8">
+                <button
+                  @click="handlePick"
+                  :disabled="isPicking"
+                  class="flex-1 py-3 rounded-full border-2 border-primary text-primary font-label-lg font-bold hover:bg-primary/5 transition-colors disabled:opacity-50"
+                >
+                  再抽一次
+                </button>
+                <button
+                  @click="goToRecipe"
+                  :disabled="!pickedRecipe || isPicking"
+                  class="flex-1 py-3 rounded-full bg-primary text-white font-label-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  就这个了
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

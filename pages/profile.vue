@@ -1,29 +1,51 @@
 <script setup lang="ts">
-const user = {
-  name: '林小食',
-  bio: '“唯有美食与爱不可辜负”',
-  level: '5',
-  levelTitle: '美食鉴赏家',
-  stats: [
-    { value: '128', label: '收藏餐厅' },
-    { value: '42', label: '我的食谱' },
-    { value: '365', label: '打卡天数' }
-  ]
-}
+const { $supabase } = useNuxtApp()
+const router = useRouter()
+
+// 获取当前用户
+const user = ref<any>(null)
+const loading = ref(true)
+const favoritesCount = ref(0)
+
+onMounted(async () => {
+  if (!$supabase) return
+
+  const { data: { user: u } } = await $supabase.auth.getUser()
+  user.value = u
+
+  if (u) {
+    const { count } = await $supabase
+      .from('favorites')
+      .select('*', { count: 'exact', head: true })
+    favoritesCount.value = count || 0
+  }
+
+  loading.value = false
+})
+
+const stats = computed(() => [
+  { icon: 'favorite', value: favoritesCount.value, label: '收藏食谱', onClick: () => router.push('/favorites') },
+  { icon: 'history', value: '56', label: '浏览记录' },
+  { icon: 'calendar_month', value: '12', label: '饮食计划' }
+])
 
 const preferences = [
-  { icon: 'local_fire_department', label: '无辣不欢', active: true },
-  { icon: 'set_meal', label: '海鲜爱好者', active: true },
-  { icon: 'fitness_center', label: '正在减脂', active: true },
-  { icon: 'coffee', label: '重度咖啡因', active: true }
+  { icon: 'restaurant', title: '口味偏好', desc: '清淡、适中、重口味' },
+  { icon: 'no_meals', title: '饮食限制', desc: '过敏原、忌口食材' },
+  { icon: 'fitness_center', title: '健康目标', desc: '减脂、增肌、保持' },
+  { icon: 'notifications', title: '提醒设置', desc: '餐前提醒、计划通知' }
 ]
 
-const settings = [
-  { icon: 'manage_accounts', label: '账号设置', badge: null },
-  { icon: 'notifications', label: '通知', badge: true },
-  { icon: 'chat_bubble', label: '意见反馈', badge: null },
-  { icon: 'info', label: '关于我们', badge: null }
-]
+async function handleLogout() {
+  if (!$supabase) return
+  await $supabase.auth.signOut()
+  user.value = null
+  router.push('/login')
+}
+
+function goToLogin() {
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -31,91 +53,79 @@ const settings = [
     <!-- TopAppBar -->
     <header class="bg-[#FFFBFA] shadow-[0_4px_20px_rgba(84,44,0,0.06)] sticky top-0 z-40">
       <div class="flex justify-between items-center w-full px-5 py-4 max-w-2xl mx-auto">
-        <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary">location_on</span>
-          <span class="font-[Plus_Jakarta_Sans] text-stone-900 font-bold">上海</span>
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-primary">person</span>
+          <h1 class="text-xl font-extrabold text-primary tracking-tight font-[Plus_Jakarta_Sans]">个人中心</h1>
         </div>
-        <h1 class="text-xl font-extrabold text-primary tracking-tight">每天吃什么</h1>
-        <button class="hover:opacity-80 transition-opacity">
-          <span class="material-symbols-outlined text-stone-900">search</span>
+        <button v-if="user" @click="handleLogout" class="text-label-sm text-on-surface-variant hover:text-primary transition-colors">
+          退出登录
         </button>
       </div>
     </header>
 
-    <main class="max-w-2xl mx-auto px-5 pt-6 space-y-8 pb-28">
-      <!-- Profile Header -->
-      <section class="relative bg-surface-container-lowest rounded-[32px] p-8 sunlight-shadow flex flex-col items-center text-center">
-        <div class="relative mb-4">
-          <div class="w-24 h-24 rounded-full border-4 border-primary-container/20 p-1 overflow-hidden">
-            <img alt="User Avatar" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop" class="w-full h-full object-cover rounded-full" />
-          </div>
-          <div class="absolute bottom-0 right-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label-sm text-[10px] shadow-sm flex items-center gap-1">
-            <span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">stars</span>
-            LV.{{ user.level }} {{ user.levelTitle }}
-          </div>
-        </div>
-        <h2 class="font-headline-md text-on-surface">{{ user.name }}</h2>
-        <p class="text-on-surface-variant font-label-md mt-1">{{ user.bio }}</p>
-      </section>
+    <main class="max-w-2xl mx-auto px-5 pt-4 pb-28 space-y-8">
+      <!-- Loading -->
+      <div v-if="loading" class="text-center py-12">
+        <div class="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
 
-      <!-- Stats Row -->
-      <section class="grid grid-cols-3 gap-4">
-        <div v-for="stat in user.stats" :key="stat.label" class="bg-surface-container-low rounded-2xl p-4 flex flex-col items-center sunlight-shadow">
-          <span class="text-headline-sm font-bold text-primary">{{ stat.value }}</span>
-          <span class="text-label-sm text-on-surface-variant mt-1">{{ stat.label }}</span>
+      <!-- Not Logged In -->
+      <div v-else-if="!user" class="text-center py-16">
+        <div class="w-20 h-20 rounded-full bg-surface-container-high mx-auto mb-6 flex items-center justify-center">
+          <span class="material-symbols-outlined text-4xl text-on-surface-variant">person_outline</span>
         </div>
-      </section>
+        <h2 class="text-headline-md text-on-surface mb-2">未登录</h2>
+        <p class="text-body-md text-on-surface-variant mb-6">登录后可使用更多功能</p>
+        <button @click="goToLogin" class="px-8 py-4 rounded-full bg-primary text-white font-label-lg font-bold shadow-lg hover:opacity-90 transition-all active:scale-[0.98]">
+          立即登录
+        </button>
+      </div>
 
-      <!-- Taste Preferences -->
-      <section class="space-y-2">
-        <h3 class="font-headline-sm text-on-surface px-1">口味偏好</h3>
-        <div class="bg-surface-container rounded-[24px] p-6 space-y-4">
-          <div class="flex flex-wrap gap-2">
-            <span v-for="pref in preferences" :key="pref.label" class="px-4 py-2 rounded-full font-label-md flex items-center gap-2" :class="pref.active ? 'bg-[#FFF4ED] text-primary' : 'bg-surface-container-highest text-on-surface-variant'">
-              <span class="material-symbols-outlined text-[18px]">{{ pref.icon }}</span>
-              {{ pref.label }}
-            </span>
+      <!-- Logged In -->
+      <template v-else>
+        <!-- Profile Card -->
+        <section class="bg-white rounded-[32px] p-6 shadow-[0_8px_30px_rgba(84,44,0,0.06)] flex items-center gap-4">
+          <div class="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-orange-400 flex items-center justify-center text-white text-3xl font-bold">
+            {{ user.email?.charAt(0).toUpperCase() }}
           </div>
-          <div class="flex justify-between items-center pt-2 border-t border-outline-variant/30">
-            <p class="text-label-sm text-on-surface-variant">基于您的 12 份食谱分析</p>
-            <button class="text-primary font-label-md flex items-center">
-              更新偏好 <span class="material-symbols-outlined text-[16px] ml-1">chevron_right</span>
-            </button>
+          <div class="flex-1">
+            <h2 class="text-headline-md text-on-surface font-bold">{{ user.user_metadata?.name || '美食家' }}</h2>
+            <p class="text-label-md text-on-surface-variant mt-1">{{ user.email }}</p>
           </div>
-        </div>
-      </section>
-
-      <!-- Settings List -->
-      <section class="bg-surface-container-lowest rounded-[32px] overflow-hidden sunlight-shadow">
-        <div class="divide-y divide-outline-variant/20">
-          <button v-for="item in settings" :key="item.label" class="w-full flex justify-between items-center p-5 hover:bg-surface-container-low transition-colors group">
-            <div class="flex items-center gap-4">
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center" :class="item.icon === 'manage_accounts' ? 'bg-primary-fixed text-on-primary-fixed-variant' : item.icon === 'notifications' ? 'bg-secondary-fixed text-on-secondary-fixed-variant' : item.icon === 'chat_bubble' ? 'bg-surface-container-highest text-on-surface-variant' : 'bg-tertiary-fixed text-on-tertiary-fixed-variant'">
-                <span class="material-symbols-outlined">{{ item.icon }}</span>
-              </div>
-              <span class="font-label-md text-on-surface">{{ item.label }}</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div v-if="item.badge" class="w-2 h-2 rounded-full bg-error animate-pulse"></div>
-              <span class="material-symbols-outlined text-outline group-hover:translate-x-1 transition-transform">chevron_right</span>
-            </div>
+          <button class="p-3 rounded-full hover:bg-surface-container-high transition-colors">
+            <span class="material-symbols-outlined text-on-surface-variant">edit</span>
           </button>
-        </div>
-      </section>
+        </section>
 
-      <!-- Promotion Banner -->
-      <section class="bg-primary p-6 rounded-[32px] text-on-primary flex items-center justify-between relative overflow-hidden">
-        <div class="relative z-10 space-y-1">
-          <h4 class="font-headline-sm">升级高级会员</h4>
-          <p class="text-label-sm opacity-90">解锁定制化营养建议与独家食谱</p>
-          <button class="mt-2 bg-white text-primary px-4 py-2 rounded-full font-label-md active:scale-95 transition-transform shadow-sm">
-            立即开启
-          </button>
-        </div>
-        <div class="absolute right-[-20px] bottom-[-20px] opacity-20 transform rotate-12">
-          <span class="material-symbols-outlined text-[120px]">bakery_dining</span>
-        </div>
-      </section>
+        <!-- Stats -->
+        <section class="grid grid-cols-3 gap-4">
+          <div
+            v-for="stat in stats"
+            :key="stat.label"
+            class="bg-surface-container-lowest rounded-2xl p-4 text-center cursor-pointer hover:bg-surface-container-low transition-colors"
+            @click="stat.onClick"
+          >
+            <span class="material-symbols-outlined text-primary text-2xl">{{ stat.icon }}</span>
+            <p class="text-headline-sm font-bold text-on-surface mt-2">{{ stat.value }}</p>
+            <p class="text-label-sm text-on-surface-variant">{{ stat.label }}</p>
+          </div>
+        </section>
+
+        <!-- Preferences -->
+        <section class="space-y-3">
+          <h3 class="text-label-lg text-on-surface-variant font-bold mb-4">偏好设置</h3>
+          <div v-for="pref in preferences" :key="pref.title" class="bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm">
+            <div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary">{{ pref.icon }}</span>
+            </div>
+            <div class="flex-1">
+              <h4 class="text-label-md font-bold text-on-surface">{{ pref.title }}</h4>
+              <p class="text-label-sm text-on-surface-variant">{{ pref.desc }}</p>
+            </div>
+            <span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+          </div>
+        </section>
+      </template>
     </main>
 
     <BottomNav />
