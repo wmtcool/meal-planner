@@ -1,0 +1,15 @@
+export default defineNuxtConfig({
+  devtools: { enabled: false },
+  modules: ['@nuxtjs/tailwindcss'],
+  app: {
+    head: {
+      title: '每天吃什么',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1.0' }
+      ]
+    }
+  },
+  css: ['~/assets/css/main.css'],
+  compatibilityDate: '2024-11-01'
+})
