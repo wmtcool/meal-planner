@@ -1,9 +1,36 @@
 <script setup lang="ts">
-const currentMonth = '2024年10月'
-const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-const dates = [21, 22, 23, 24, 25, 26, 27]
-const activeDay = 2 // Wednesday
+const { $supabase } = useNuxtApp()
 
+const today = new Date()
+const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+// 生成一周日期
+const weekDates = computed(() => {
+  const dates = []
+  for (let i = -3; i <= 3; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    dates.push({
+      day: weekDays[d.getDay()],
+      date: d.getDate(),
+      isToday: i === 0,
+      fullDate: d.toISOString().split('T')[0]
+    })
+  }
+  return dates
+})
+
+const activeDate = ref(today.toISOString().split('T')[0])
+
+// 从 Supabase 获取食谱
+const { data: recipes } = await useAsyncData('plan-recipes', async () => {
+  const { data } = await $supabase
+    .from('recipes')
+    .select('*')
+  return data || []
+})
+
+// 今日营养（模拟数据）
 const nutrition = {
   target: 1850,
   achieved: 65,
@@ -12,38 +39,30 @@ const nutrition = {
   fat: { current: 52, target: 65 }
 }
 
-const meals = [
-  {
-    type: '早餐',
-    time: '08:30 AM',
-    name: '牛油果水波蛋吐司',
-    calories: 342,
-    tag: '高蛋白',
-    tagClass: 'bg-secondary-fixed text-on-secondary-fixed-variant',
-    image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=200&h=200&fit=crop'
-  },
-  {
-    type: '午餐',
-    time: '12:30 PM',
-    name: '藜麦香烤红薯能量碗',
-    calories: 528,
-    tag: '低GI',
-    tagClass: 'bg-secondary-fixed text-on-secondary-fixed-variant',
-    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop'
-  }
-]
+// 餐单（随机选 2 个食谱）
+const meals = computed(() => {
+  if (!recipes.value || recipes.value.length === 0) return []
+  const shuffled = [...recipes.value].sort(() => 0.5 - Math.random())
+  return shuffled.slice(0, 2).map((r, i) => ({
+    type: i === 0 ? '早餐' : '午餐',
+    time: i === 0 ? '08:30 AM' : '12:30 PM',
+    name: r.title,
+    calories: r.calories,
+    tag: r.difficulty,
+    image: r.image_url
+  }))
+})
 
-const suggestions = [
-  { name: '柠檬香草烤三文鱼', category: '晚餐推荐', image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=300&h=400&fit=crop' },
-  { name: '地中海油醋沙拉', category: '低卡首选', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=400&fit=crop' }
-]
-
-const weekDays = days.map((day, i) => ({
-  day,
-  date: dates[i],
-  isActive: i === activeDay,
-  isToday: i === activeDay
-}))
+// 推荐食谱（随机选 2 个）
+const suggestions = computed(() => {
+  if (!recipes.value || recipes.value.length === 0) return []
+  const shuffled = [...recipes.value].sort(() => 0.5 - Math.random())
+  return shuffled.slice(0, 2).map(r => ({
+    name: r.title,
+    category: r.category,
+    image: r.image_url
+  }))
+})
 </script>
 
 <template>
@@ -65,11 +84,11 @@ const weekDays = days.map((day, i) => ({
       <!-- Horizontal Week Calendar -->
       <section class="mt-4">
         <div class="flex justify-between items-center mb-2">
-          <h2 class="font-headline-sm text-on-surface">{{ currentMonth }}</h2>
+          <h2 class="font-headline-sm text-on-surface">{{ today.getFullYear() }}年{{ today.getMonth() + 1 }}月</h2>
           <span class="text-label-sm text-primary font-bold">今天</span>
         </div>
         <div class="flex gap-3 overflow-x-auto hide-scrollbar py-2">
-          <div v-for="(d, i) in weekDays" :key="i" class="flex flex-col items-center min-w-[56px] py-4 rounded-3xl" :class="d.isActive ? 'bg-primary-container text-on-primary-container shadow-[0_8px_20px_rgba(255,107,0,0.25)] border-2 border-primary' : 'bg-surface-container-high text-on-surface-variant opacity-60'">
+          <div v-for="d in weekDates" :key="d.fullDate" @click="activeDate = d.fullDate" class="flex flex-col items-center min-w-[56px] py-4 rounded-3xl cursor-pointer" :class="d.isToday ? 'bg-primary-container text-on-primary-container shadow-[0_8px_20px_rgba(255,107,0,0.25)] border-2 border-primary' : 'bg-surface-container-high text-on-surface-variant opacity-60'">
             <span class="text-label-sm mb-1">{{ d.day }}</span>
             <span class="font-headline-sm">{{ d.date }}</span>
           </div>
@@ -122,7 +141,6 @@ const weekDays = days.map((day, i) => ({
       <section class="space-y-4">
         <h2 class="font-headline-sm text-on-surface px-1">今日餐单</h2>
         
-        <!-- Breakfast & Lunch -->
         <div v-for="meal in meals" :key="meal.type" class="relative pl-8">
           <div class="absolute left-[11px] top-8 bottom-0 w-[2px] bg-orange-100"></div>
           <div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-[#FFF4ED] flex items-center justify-center border-2 border-primary-container z-10">
@@ -137,7 +155,7 @@ const weekDays = days.map((day, i) => ({
             <div class="flex-1 flex flex-col justify-center">
               <h4 class="font-label-md text-on-surface">{{ meal.name }}</h4>
               <div class="flex items-center gap-3 mt-1">
-                <span :class="meal.tagClass" class="px-2 py-0.5 rounded-full text-[10px] font-bold">{{ meal.tag }}</span>
+                <span class="bg-secondary-fixed text-on-secondary-fixed-variant px-2 py-0.5 rounded-full text-[10px] font-bold">{{ meal.tag }}</span>
                 <span class="text-label-sm text-outline">{{ meal.calories }} kcal</span>
               </div>
             </div>
@@ -167,7 +185,10 @@ const weekDays = days.map((day, i) => ({
           <h2 class="font-headline-sm text-on-surface">为你推荐</h2>
           <button class="text-label-sm text-primary">换一批</button>
         </div>
-        <div class="grid grid-cols-2 gap-4">
+        <div v-if="suggestions.length === 0" class="text-center py-12 text-on-surface-variant">
+          暂无推荐
+        </div>
+        <div v-else class="grid grid-cols-2 gap-4">
           <div v-for="item in suggestions" :key="item.name" class="group relative aspect-[4/5] rounded-[32px] overflow-hidden shadow-md">
             <img :alt="item.name" :src="item.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>

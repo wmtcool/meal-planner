@@ -692,7 +692,10 @@ const _inlineRuntimeConfig = {
       }
     }
   },
-  "public": {}
+  "public": {
+    "supabaseUrl": "https://jcrnxcxqrrbrljkzawes.supabase.co",
+    "supabaseAnonKey": "sb_publishable_5dl9y9VL3bikunw8ycZdzw_9KIS6yP7"
+  }
 };
 const envOptions = {
   prefix: "NITRO_",
@@ -2181,7 +2184,22 @@ const plugins = [
 _wH6JrtIxmaSoA8lCPWFnE9z4lQeXW6H5z3l5aymEQw
 ];
 
-const assets = {};
+const assets = {
+  "/index.mjs": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1a4bc-AraVkEZ+ibaXUOhkKVLYLVF2X/I\"",
+    "mtime": "2026-05-02T02:18:52.430Z",
+    "size": 107708,
+    "path": "index.mjs"
+  },
+  "/index.mjs.map": {
+    "type": "application/json",
+    "etag": "\"69285-7ulM8irw+rh4JRdConyZ6x64aUU\"",
+    "mtime": "2026-05-02T02:18:52.431Z",
+    "size": 430725,
+    "path": "index.mjs.map"
+  }
+};
 
 function readAsset (id) {
   const serverDir = dirname$1(fileURLToPath(globalThis._importMeta_.url));

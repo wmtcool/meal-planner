@@ -1,20 +1,45 @@
 <script setup lang="ts">
-const categories = ['附近餐厅', '热门食谱', '快手菜', '甜品', '低脂健康']
-const trends = [
-  { name: '麻辣烫', image: 'https://images.unsplash.com/photo-1585032226651-759b378dcfaf?w=400&h=400&fit=crop' },
-  { name: '轻食沙拉', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=400&fit=crop' },
-  { name: '手工披萨', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=400&fit=crop' },
-  { name: '牛排', image: 'https://images.unsplash.com/photo-1544025162-d76690b67f61?w=400&h=400&fit=crop' },
-]
+const { $supabase } = useNuxtApp()
 
-const dailyPick = {
-  name: '蜂蜜香煎三文鱼',
-  desc: '清新自然的口感，营养均衡的选择',
-  time: '25 分钟',
-  calories: '420 千卡',
-  rating: '4.8',
-  image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&h=400&fit=crop'
-}
+const categories = ['附近餐厅', '热门食谱', '快手菜', '甜品', '低脂健康']
+
+// 从 Supabase 获取热门食谱
+const { data: recipes } = await useAsyncData('recipes', async () => {
+  const { data } = await $supabase
+    .from('recipes')
+    .select('*')
+    .limit(4)
+  return data || []
+})
+
+// 随机选择一个作为每日精选
+const dailyPick = computed(() => {
+  if (!recipes.value || recipes.value.length === 0) {
+    return {
+      title: '加载中...',
+      description: '',
+      image_url: '',
+      cook_time: 0,
+      calories: 0,
+      difficulty: ''
+    }
+  }
+  const randomIndex = Math.floor(Math.random() * recipes.value.length)
+  const recipe = recipes.value[randomIndex]
+  return {
+    ...recipe,
+    rating: (4.5 + Math.random() * 0.5).toFixed(1)
+  }
+})
+
+// 格式化热门数据
+const trends = computed(() => {
+  if (!recipes.value) return []
+  return recipes.value.map(r => ({
+    name: r.title,
+    image: r.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'
+  }))
+})
 </script>
 
 <template>
@@ -78,17 +103,17 @@ const dailyPick = {
         <h3 class="font-headline-md text-on-surface">每日精选</h3>
         <div class="relative rounded-[32px] overflow-hidden shadow-[0_12px_40px_rgba(84,44,0,0.12)] bg-white group cursor-pointer">
           <div class="aspect-[16/10] overflow-hidden">
-            <img :alt="dailyPick.name" :src="dailyPick.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+            <img :alt="dailyPick.title" :src="dailyPick.image_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
             <div class="absolute top-4 left-4 flex gap-2">
-              <span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label-sm shadow-sm">Healthy</span>
-              <span class="bg-tertiary-container/90 text-on-tertiary-container px-3 py-1 rounded-full font-label-sm shadow-sm backdrop-blur-sm">Spicy</span>
+              <span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label-sm shadow-sm">{{ dailyPick.difficulty }}</span>
+              <span v-if="dailyPick.tags && dailyPick.tags[0]" class="bg-tertiary-container/90 text-on-tertiary-container px-3 py-1 rounded-full font-label-sm shadow-sm backdrop-blur-sm">{{ dailyPick.tags[0] }}</span>
             </div>
           </div>
           <div class="p-6 space-y-4">
             <div class="flex justify-between items-start">
               <div>
-                <h4 class="font-headline-sm text-on-surface">{{ dailyPick.name }}</h4>
-                <p class="text-on-surface-variant font-body-md mt-1">{{ dailyPick.desc }}</p>
+                <h4 class="font-headline-sm text-on-surface">{{ dailyPick.title }}</h4>
+                <p class="text-on-surface-variant font-body-md mt-1">{{ dailyPick.description }}</p>
               </div>
               <div class="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-lg">
                 <span class="material-symbols-outlined text-secondary-container text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
@@ -98,11 +123,11 @@ const dailyPick = {
             <div class="flex items-center gap-6 text-on-surface-variant">
               <div class="flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-sm">schedule</span>
-                <span class="text-sm font-medium">{{ dailyPick.time }}</span>
+                <span class="text-sm font-medium">{{ dailyPick.cook_time }} 分钟</span>
               </div>
               <div class="flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-sm">local_fire_department</span>
-                <span class="text-sm font-medium">{{ dailyPick.calories }}</span>
+                <span class="text-sm font-medium">{{ dailyPick.calories }} 千卡</span>
               </div>
             </div>
           </div>

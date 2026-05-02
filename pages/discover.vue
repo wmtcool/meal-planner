@@ -1,42 +1,45 @@
 <script setup lang="ts">
-const categories = ['附近餐厅', '热门食谱', '快手菜', '甜品', '低脂健康']
+const { $supabase } = useNuxtApp()
 
-const mustTry = {
-  name: '清晨活力：牛油果鹰嘴豆能量碗',
-  desc: '开启健康生活的第一步，简单又美味',
-  image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop'
-}
+const categories = ['全部', '热菜', '海鲜', '沙拉', '主食', '甜品']
+const activeCategory = ref('全部')
 
-const recommendations = [
-  {
-    name: '夏日地中海：清新番茄希腊沙拉',
-    author: '小厨阿雅',
-    authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-    likes: '1.2k',
-    image: 'https://images.unsplash.com/photo-1540189544446-46aead26ecce?w=400&h=300&fit=crop'
-  },
-  {
-    name: '街头味道：正宗墨西哥辣味塔可',
-    author: '寻味家马克',
-    authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-    likes: '856',
-    image: 'https://images.unsplash.com/photo-1565299584946-b28f40a0ae38?w=400&h=300&fit=crop'
-  },
-  {
-    name: '意式浪漫：手工宽面配罗勒奶油酱',
-    author: '莉莉的厨房',
-    authorAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
-    likes: '2.4k',
-    image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=400&h=300&fit=crop'
-  },
-  {
-    name: '主厨秘籍：完美的五分熟牛排',
-    author: 'Chef David',
-    authorAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-    likes: '932',
-    image: 'https://images.unsplash.com/photo-1544025162-d76690b67f61?w=400&h=300&fit=crop'
+// 从 Supabase 获取食谱
+const { data: recipes } = await useAsyncData('all-recipes', async () => {
+  const { data } = await $supabase
+    .from('recipes')
+    .select('*')
+  return data || []
+})
+
+// 根据分类过滤
+const filteredRecipes = computed(() => {
+  if (!recipes.value) return []
+  if (activeCategory.value === '全部') return recipes.value
+  return recipes.value.filter(r => r.category === activeCategory.value)
+})
+
+// 本周必尝（随机选一个）
+const mustTry = computed(() => {
+  if (!recipes.value || recipes.value.length === 0) {
+    return { title: '加载中...', description: '', image_url: '' }
   }
-]
+  const randomIndex = Math.floor(Math.random() * recipes.value.length)
+  return recipes.value[randomIndex]
+})
+
+// 格式化推荐列表
+const recommendations = computed(() => {
+  if (!filteredRecipes.value) return []
+  return filteredRecipes.value.map(r => ({
+    name: r.title,
+    author: '美食达人',
+    authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+    likes: Math.floor(Math.random() * 2000 + 500).toLocaleString(),
+    image: r.image_url,
+    category: r.category
+  }))
+})
 </script>
 
 <template>
@@ -58,7 +61,7 @@ const recommendations = [
       <!-- Category Chips -->
       <section class="mb-8 overflow-x-auto hide-scrollbar -mx-5 px-5">
         <div class="flex gap-3 whitespace-nowrap">
-          <button v-for="cat in categories" :key="cat" class="px-5 py-2.5 rounded-full font-label-md shadow-sm active:scale-95 transition-transform" :class="cat === '附近餐厅' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-high text-on-surface-variant'">
+          <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" class="px-5 py-2.5 rounded-full font-label-md shadow-sm active:scale-95 transition-transform" :class="cat === activeCategory ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-high text-on-surface-variant'">
             {{ cat }}
           </button>
         </div>
@@ -71,11 +74,11 @@ const recommendations = [
           <button class="text-primary font-label-sm">查看全部</button>
         </div>
         <div class="relative group overflow-hidden rounded-[32px] shadow-[0_12px_40px_rgba(84,44,0,0.12)]">
-          <img :alt="mustTry.name" :src="mustTry.image" class="w-full h-64 object-cover" loading="lazy" />
+          <img :alt="mustTry.title" :src="mustTry.image_url" class="w-full h-64 object-cover" loading="lazy" />
           <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex flex-col justify-end p-6">
             <span class="bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full w-fit mb-2">Editor's Pick</span>
-            <h3 class="text-white font-headline-sm text-lg">{{ mustTry.name }}</h3>
-            <p class="text-white/80 font-body-md text-sm mt-1">{{ mustTry.desc }}</p>
+            <h3 class="text-white font-headline-sm text-lg">{{ mustTry.title }}</h3>
+            <p class="text-white/80 font-body-md text-sm mt-1">{{ mustTry.description }}</p>
           </div>
         </div>
       </section>
@@ -83,10 +86,13 @@ const recommendations = [
       <!-- Masonry Feed -->
       <section class="mb-10">
         <h2 class="font-headline-md text-on-surface mb-4">为你推荐</h2>
-        <div class="columns-2 gap-4">
-          <div v-for="item in recommendations" :key="item.name" class="group break-inside-avoid mb-4">
+        <div v-if="recommendations.length === 0" class="text-center py-12 text-on-surface-variant">
+          暂无食谱数据
+        </div>
+        <div v-else class="columns-2 gap-4">
+          <div v-for="(item, i) in recommendations" :key="item.name + i" class="group break-inside-avoid mb-4">
             <div class="bg-white rounded-3xl overflow-hidden shadow-[0_4px_15px_rgba(84,44,0,0.06)] hover:shadow-[0_12px_30px_rgba(84,44,0,0.1)] transition-all">
-              <img :alt="item.name" :src="item.image" class="w-full object-cover" :class="item.name.includes('塔可') ? 'h-64' : 'h-48'" loading="lazy" />
+              <img :alt="item.name" :src="item.image" class="w-full object-cover" :class="i % 3 === 0 ? 'h-64' : 'h-48'" loading="lazy" />
               <div class="p-4">
                 <h4 class="font-headline-sm text-sm text-on-surface line-clamp-2">{{ item.name }}</h4>
                 <div class="flex justify-between items-center mt-3">
