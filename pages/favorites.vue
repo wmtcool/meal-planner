@@ -56,7 +56,7 @@ async function removeFavorite(recipeId: string) {
 
 // 跳转详情
 function goToRecipe(recipe: any) {
-  router.push(`/?recipe=${recipe.id}`)
+  router.push(`/recipe/${recipe.id}`)
 }
 </script>
 

@@ -129,7 +129,7 @@ const recommendations = computed(() => {
           <h2 class="font-headline-md text-on-surface">本周必尝</h2>
           <button class="text-primary font-label-sm">查看全部</button>
         </div>
-        <div class="relative group overflow-hidden rounded-[32px] shadow-[0_12px_40px_rgba(84,44,0,0.12)]">
+        <div class="relative group overflow-hidden rounded-[32px] shadow-[0_12px_40px_rgba(84,44,0,0.12)] cursor-pointer" @click="router.push(`/recipe/${mustTry.id}`)">
           <img :alt="mustTry.title" :src="mustTry.image_url" class="w-full h-64 object-cover" loading="lazy" />
           <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex flex-col justify-end p-6">
             <span class="bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full w-fit mb-2">Editor's Pick</span>
@@ -156,7 +156,7 @@ const recommendations = computed(() => {
           暂无食谱数据
         </div>
         <div v-else class="columns-2 gap-4">
-          <div v-for="(item, i) in recommendations" :key="item.id" class="group break-inside-avoid mb-4">
+          <div v-for="(item, i) in recommendations" :key="item.id" class="group break-inside-avoid mb-4 cursor-pointer" @click="router.push(`/recipe/${item.id}`)">
             <div class="bg-white rounded-3xl overflow-hidden shadow-[0_4px_15px_rgba(84,44,0,0.06)] hover:shadow-[0_12px_30px_rgba(84,44,0,0.1)] transition-all">
               <div class="relative">
                 <img :alt="item.name" :src="item.image" class="w-full object-cover" :class="i % 3 === 0 ? 'h-64' : 'h-48'" loading="lazy" />

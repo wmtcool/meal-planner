@@ -71,10 +71,11 @@ function closePicker() {
   pickedRecipe.value = null
 }
 
-function goToRecipe() {
-  if (pickedRecipe.value) {
-    router.push(`/?recipe=${pickedRecipe.value.id}`)
-    closePicker()
+function goToRecipe(id?: string) {
+  const rid = id || pickedRecipe.value?.id
+  if (rid) {
+    router.push(`/recipe/${rid}`)
+    if (!id) closePicker()
   }
 }
 </script>
@@ -129,7 +130,7 @@ function goToRecipe() {
           <button class="text-primary font-label-md hover:opacity-80">查看全部</button>
         </div>
         <div class="flex overflow-x-auto gap-4 hide-scrollbar -mx-5 px-5 py-2">
-          <div v-for="item in trends" :key="item.id" class="flex-shrink-0 w-40 space-y-3 group cursor-pointer active:scale-95 transition-transform">
+          <div v-for="item in trends" :key="item.id" class="flex-shrink-0 w-40 space-y-3 group cursor-pointer active:scale-95 transition-transform" @click="goToRecipe(item.id)">
             <div class="h-48 rounded-[24px] overflow-hidden shadow-[0_8px_20px_rgba(84,44,0,0.08)]">
               <img :alt="item.name" :src="item.image" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
             </div>
@@ -141,7 +142,7 @@ function goToRecipe() {
       <!-- Daily Special -->
       <section class="space-y-4">
         <h3 class="font-headline-md text-on-surface">每日精选</h3>
-        <div class="relative rounded-[32px] overflow-hidden shadow-[0_12px_40px_rgba(84,44,0,0.12)] bg-white group cursor-pointer">
+        <div class="relative rounded-[32px] overflow-hidden shadow-[0_12px_40px_rgba(84,44,0,0.12)] bg-white group cursor-pointer" @click="goToRecipe(dailyPick.id)">
           <div class="aspect-[16/10] overflow-hidden">
             <img :alt="dailyPick.title" :src="dailyPick.image_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
             <div class="absolute top-4 left-4 flex gap-2">
@@ -208,7 +209,7 @@ function goToRecipe() {
                   再抽一次
                 </button>
                 <button
-                  @click="goToRecipe"
+                  @click="goToRecipe()"
                   :disabled="!pickedRecipe || isPicking"
                   class="flex-1 py-3 rounded-full bg-primary text-white font-label-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
