@@ -6,6 +6,8 @@ const router = useRouter()
 const user = ref<any>(null)
 const loading = ref(true)
 const favoritesCount = ref(0)
+const historyCount = ref(0)
+const planCount = ref(0)
 
 onMounted(async () => {
   if (!$supabase) return
@@ -14,10 +16,28 @@ onMounted(async () => {
   user.value = u
 
   if (u) {
-    const { count } = await $supabase
+    const { count: favCount } = await $supabase
       .from('favorites')
       .select('*', { count: 'exact', head: true })
-    favoritesCount.value = count || 0
+      .eq('user_id', u.id)
+    favoritesCount.value = favCount || 0
+
+    const { count: pCount } = await $supabase
+      .from('meal_plans')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', u.id)
+    planCount.value = pCount || 0
+
+    // 浏览记录：统计用户收藏过的不同食谱数 + 计划中不同食谱数，作为近似
+    const [favRes, planRes] = await Promise.all([
+      $supabase.from('favorites').select('recipe_id').eq('user_id', u.id),
+      $supabase.from('meal_plans').select('recipe_id').eq('user_id', u.id)
+    ])
+    const allRecipeIds = new Set([
+      ...(favRes.data || []).map((r: any) => r.recipe_id),
+      ...(planRes.data || []).map((r: any) => r.recipe_id)
+    ])
+    historyCount.value = allRecipeIds.size
   }
 
   loading.value = false
@@ -25,8 +45,8 @@ onMounted(async () => {
 
 const stats = computed(() => [
   { icon: 'favorite', value: favoritesCount.value, label: '收藏食谱', onClick: () => router.push('/favorites') },
-  { icon: 'history', value: '56', label: '浏览记录' },
-  { icon: 'calendar_month', value: '12', label: '饮食计划' }
+  { icon: 'history', value: historyCount.value, label: '浏览记录' },
+  { icon: 'calendar_month', value: planCount.value, label: '饮食计划' }
 ])
 
 const preferences = [
